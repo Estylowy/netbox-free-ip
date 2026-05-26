@@ -1,0 +1,336 @@
+{% load i18n %}
+
+{% if prefix %}
+<!-- Modal usuwania -->
+<div id="free-ip-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+  <div class="card" style="min-width:360px;max-width:420px;margin:auto;margin-top:15vh;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong><i class="mdi mdi-delete-outline me-1"></i>Usuń adres IP</strong>
+      <button class="btn btn-sm btn-outline-secondary" onclick="closeModal()"><i class="mdi mdi-close"></i></button>
+    </div>
+    <div class="card-body">
+      <p class="mb-1">Czy na pewno chcesz usunąć adres:</p>
+      <p class="mb-3"><code id="modal-ip" style="font-size:1rem;"></code></p>
+      <div id="modal-ip-info" class="mb-3 text-secondary small"></div>
+      <div class="d-flex gap-2 justify-content-end">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Anuluj</button>
+        <button class="btn btn-danger btn-sm" id="modal-confirm-btn"><i class="mdi mdi-delete me-1"></i>Usuń</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal dodawania -->
+<div id="free-ip-add-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+  <div class="card" style="min-width:360px;max-width:480px;margin:auto;margin-top:15vh;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong><i class="mdi mdi-plus-circle-outline me-1"></i>Dodaj adres IP</strong>
+      <button class="btn btn-sm btn-outline-secondary" onclick="closeAddModal()"><i class="mdi mdi-close"></i></button>
+    </div>
+    <div class="card-body">
+      <p class="mb-1">Adres: <code id="add-modal-ip" style="font-size:1rem;"></code></p>
+      <div class="mb-3 mt-2">
+        <label class="form-label small">Opis (opcjonalnie)</label>
+        <input type="text" id="add-modal-desc" class="form-control form-control-sm" placeholder="np. serwer-www-01">
+      </div>
+      <div class="d-flex gap-2 justify-content-end">
+        <button class="btn btn-secondary btn-sm" onclick="closeAddModal()">Anuluj</button>
+        <a id="add-modal-link" href="#" class="btn btn-success btn-sm"><i class="mdi mdi-plus me-1"></i>Przejdź do formularza</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="free-ip-panel">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <i class="mdi mdi-ip-network-outline text-success"></i>
+      <strong>Wolne zakresy IP — <code>{{ prefix.prefix }}</code></strong>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span id="free-ip-summary" class="text-secondary small"></span>
+      <button class="btn btn-sm btn-ghost-secondary" onclick="toggleFreeIPPanel()">
+        <i class="mdi mdi-chevron-up" id="free-ip-chevron"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="free-ip-panel-body">
+    <div id="free-ip-loading" class="text-center py-4 text-secondary">
+      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+      Obliczanie wolnych zakresów…
+    </div>
+    <div id="free-ip-error" class="alert alert-danger m-3" style="display:none;"></div>
+
+    <div id="free-ip-table-wrapper" style="display:none;">
+      <div class="px-3 pt-3 pb-2 d-flex justify-content-between align-items-center">
+        <small class="text-secondary" id="free-ip-count-label"></small>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="exportCSV()">
+            <i class="mdi mdi-download"></i> CSV
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="copyFreeRanges()">
+            <i class="mdi mdi-content-copy"></i> Kopiuj
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover table-headings mb-0">
+          <thead>
+            <tr>
+              <th class="ps-3">Pierwszy wolny adres</th>
+              <th>Ostatni wolny adres</th>
+              <th>Liczba adresów</th>
+              <th>Dodaj adres</th>
+            </tr>
+          </thead>
+          <tbody id="free-ip-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="px-3 pt-3 pb-1 d-flex justify-content-between align-items-center border-top">
+        <small class="text-secondary">Wizualny podgląd prefiksu</small>
+        <div class="d-flex gap-1 align-items-center">
+          <button id="filter-active" onclick="toggleFilter(this)"
+                  class="btn btn-sm btn-danger" style="font-size:.75rem;padding:2px 10px;">Active</button>
+          <button id="filter-reserved" onclick="toggleFilter(this)"
+                  class="btn btn-sm btn-warning" style="font-size:.75rem;padding:2px 10px;">Reserved</button>
+          <button id="filter-deprecated" onclick="toggleFilter(this)"
+                  class="btn btn-sm btn-secondary" style="font-size:.75rem;padding:2px 10px;">Deprecated</button>
+        </div>
+      </div>
+      <div id="free-ip-grid" class="px-3 pb-3 pt-2 d-flex flex-wrap gap-1"></div>
+      <div class="px-3 pb-3 d-flex gap-3 flex-wrap border-top pt-2">
+        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:#198754;border-radius:3px;vertical-align:middle;"></span> Wolny</small>
+        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:#dc3545;border-radius:3px;vertical-align:middle;"></span> Active</small>
+        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:#fd7e14;border-radius:3px;vertical-align:middle;"></span> Reserved</small>
+        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:#6c757d;border-radius:3px;vertical-align:middle;"></span> Deprecated / Sieć</small>
+      </div>
+    </div>
+
+    <div id="free-ip-empty" style="display:none;" class="text-center py-4 text-secondary">
+      <i class="mdi mdi-check-circle-outline fs-4 text-success"></i>
+      <div class="mt-1">Prefiks jest w pełni zajęty – brak wolnych adresów.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const PREFIX_ID = {{ prefix.pk }};
+  const PREFIX = "{{ prefix.prefix }}";
+  const PREFIX_MASK = PREFIX.split("/")[1];
+  const PREFIX_BASE = PREFIX.split("/")[0];
+  const API_URL = "/plugins/free-ip/prefix/" + PREFIX_ID + "/free-ranges/";
+  const IPAM_API = "/api/ipam/ip-addresses/?parent=" + encodeURIComponent(PREFIX) + "&limit=1000";
+  let _freeData = [], _usedData = [], _panelVisible = true;
+
+  function el(id) { return document.getElementById(id); }
+  function show(id) { el(id).style.display = ""; }
+  function hide(id) { el(id).style.display = "none"; }
+  function ipToInt(ip) { return ip.split(".").reduce(function(acc, oct) { return (acc << 8) + parseInt(oct); }, 0) >>> 0; }
+  function intToIp(n) { return [(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255].join("."); }
+
+  function getStatusColor(status) {
+    if (status === "active") return "#dc3545";
+    if (status === "reserved") return "#fd7e14";
+    if (status === "deprecated") return "#6c757d";
+    return "#dc3545";
+  }
+
+  function renderTable(results) {
+    const tbody = el("free-ip-tbody");
+    tbody.innerHTML = "";
+    results.forEach(function(row) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td class='ps-3'>" + row.start + "</td><td>" + row.end + "</td>" +
+        "<td><span class='badge bg-success text-white'>" + row.count.toLocaleString() + "</span></td>" +
+        "<td><button class='btn btn-sm btn-outline-success' onclick='openAddModal(\"" + row.start + "\")' title='Dodaj adres IP'><i class='mdi mdi-plus-thick'></i></button></td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  window.toggleFilter = function(btn) {
+    const active = !btn.classList.contains("btn-outline-secondary");
+    if (active) {
+      btn.className = btn.className.replace(/btn-(danger|warning|secondary)/, "btn-outline-secondary");
+    } else {
+      if (btn.id === "filter-active") btn.className = btn.className.replace("btn-outline-secondary", "btn-danger");
+      if (btn.id === "filter-reserved") btn.className = btn.className.replace("btn-outline-secondary", "btn-warning");
+      if (btn.id === "filter-deprecated") btn.className = btn.className.replace("btn-outline-secondary", "btn-secondary");
+    }
+    renderGrid(_freeData, _usedData);
+  };
+
+  function isFilterOn(id) { return !el(id).classList.contains("btn-outline-secondary"); }
+
+  function renderGrid(freeRanges, usedIps) {
+    const showActive = isFilterOn("filter-active");
+    const showReserved = isFilterOn("filter-reserved");
+    const showDeprecated = isFilterOn("filter-deprecated");
+    const grid = el("free-ip-grid");
+    grid.innerHTML = "";
+    const usedMap = {};
+    usedIps.forEach(function(item) { usedMap[item.address.split("/")[0]] = item; });
+    const freeSet = {};
+    freeRanges.forEach(function(range) {
+      const start = ipToInt(range.start), end = ipToInt(range.end);
+      for (var i = start; i <= end; i++) freeSet[intToIp(i)] = true;
+    });
+    const baseInt = ipToInt(PREFIX_BASE);
+    const size = Math.pow(2, 32 - parseInt(PREFIX_MASK));
+    const limit = Math.min(size, 512);
+    for (var i = 0; i < limit; i++) {
+      const ip = intToIp(baseInt + i);
+      const cell = document.createElement("a");
+      cell.textContent = ip.split(".")[3];
+      const usedItem = usedMap[ip];
+      if (i === 0 || i === size - 1) {
+        cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:#495057;color:#adb5bd;text-decoration:none;cursor:default;";
+        cell.title = ip + " (sieć/broadcast)";
+      } else if (usedItem) {
+        const status = usedItem.status && usedItem.status.value ? usedItem.status.value : "active";
+        const visible = (status==="active"&&showActive)||(status==="reserved"&&showReserved)||(status==="deprecated"&&showDeprecated);
+        if (!visible) {
+          cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:#2d3748;color:#4a5568;text-decoration:none;cursor:default;";
+        } else {
+          cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:" + getStatusColor(status) + ";color:#fff;text-decoration:none;cursor:pointer;";
+          const desc = usedItem.description ? " — " + usedItem.description : "";
+          const dns = usedItem.dns_name ? " (" + usedItem.dns_name + ")" : "";
+          cell.title = ip + " [" + status + "]" + dns + desc + "\nKliknij aby usunąć";
+          (function(itemIp, itemId, itemDesc, itemDns) {
+            cell.addEventListener("click", function(e) { e.preventDefault(); showDeleteModal(itemIp, itemId, itemDesc, itemDns); });
+          })(ip, usedItem.id, usedItem.description||"", usedItem.dns_name||"");
+        }
+      } else if (freeSet[ip]) {
+        cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:#198754;color:#fff;text-decoration:none;cursor:pointer;";
+        cell.title = ip + " (wolny) — kliknij aby dodać";
+        (function(itemIp) { cell.addEventListener("click", function(e) { e.preventDefault(); openAddModal(itemIp); }); })(ip);
+      } else {
+        cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:#495057;color:#adb5bd;text-decoration:none;cursor:default;";
+      }
+      grid.appendChild(cell);
+    }
+    if (size > 512) {
+      const info = document.createElement("div");
+      info.className = "text-secondary small mt-2 w-100";
+      info.textContent = "Wyświetlono pierwsze 512 z " + size + " adresów.";
+      grid.appendChild(info);
+    }
+  }
+
+  function showDeleteModal(ip, id, desc, dns) {
+    el("modal-ip").textContent = ip + "/" + PREFIX_MASK;
+    const info = [];
+    if (dns) info.push("DNS: " + dns);
+    if (desc) info.push("Opis: " + desc);
+    el("modal-ip-info").textContent = info.join(" | ");
+    el("free-ip-modal").style.display = "flex";
+    el("modal-confirm-btn").onclick = function() {
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "/ipam/ip-addresses/" + id + "/delete/";
+      const csrf = document.createElement("input");
+      csrf.type = "hidden"; csrf.name = "csrfmiddlewaretoken"; csrf.value = "{{ csrf_token }}";
+      const confirm_input = document.createElement("input");
+      confirm_input.type = "hidden"; confirm_input.name = "confirm"; confirm_input.value = "true";
+      form.appendChild(csrf); form.appendChild(confirm_input);
+      document.body.appendChild(form); form.submit();
+    };
+  }
+
+  window.closeModal = function() { el("free-ip-modal").style.display = "none"; };
+
+  window.openAddModal = function(ip) {
+    el("add-modal-ip").textContent = ip + "/" + PREFIX_MASK;
+    el("add-modal-desc").value = "";
+    el("add-modal-link").href = "/ipam/ip-addresses/add/?address=" + ip + "/" + PREFIX_MASK;
+    el("add-modal-desc").oninput = function() {
+      const desc = encodeURIComponent(el("add-modal-desc").value);
+      el("add-modal-link").href = "/ipam/ip-addresses/add/?address=" + ip + "/" + PREFIX_MASK + (desc?"&description="+desc:"") + "&return_url=/ipam/prefixes/" + PREFIX_ID + "/";
+    };
+    el("free-ip-add-modal").style.display = "flex";
+  };
+
+  window.closeAddModal = function() { el("free-ip-add-modal").style.display = "none"; };
+
+  function loadFreeRanges() {
+    Promise.all([
+      fetch(API_URL).then(function(r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }),
+      fetch(IPAM_API).then(function(r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    ]).then(function(res) {
+      hide("free-ip-loading");
+      _freeData = res[0].results || [];
+      _usedData = res[1].results || [];
+      if (_freeData.length === 0) { show("free-ip-empty"); el("free-ip-summary").textContent = "Brak wolnych adresów"; return; }
+      const totalFree = _freeData.reduce(function(s, r) { return s + r.count; }, 0);
+      el("free-ip-summary").textContent = _freeData.length + " wolnych zakresów · " + totalFree.toLocaleString() + " adresów";
+      el("free-ip-count-label").textContent = _freeData.length + " wolnych zakresów (" + totalFree.toLocaleString() + " adresów)";
+      renderTable(_freeData);
+      renderGrid(_freeData, _usedData);
+      show("free-ip-table-wrapper");
+    }).catch(function(err) { hide("free-ip-loading"); el("free-ip-error").textContent = "Błąd: " + err.message; show("free-ip-error"); });
+  }
+
+  window.toggleFreeIPPanel = function() {
+    _panelVisible = !_panelVisible;
+    el("free-ip-panel-body").style.display = _panelVisible ? "" : "none";
+    el("free-ip-chevron").className = _panelVisible ? "mdi mdi-chevron-up" : "mdi mdi-chevron-down";
+  };
+
+  window.copyFreeRanges = function() {
+    const lines = [];
+    const baseInt = ipToInt(PREFIX_BASE);
+    const size = Math.pow(2, 32 - parseInt(PREFIX_MASK));
+    const usedMap = {};
+    _usedData.forEach(function(item) { usedMap[item.address.split("/")[0]] = item; });
+    const freeSet = {};
+    _freeData.forEach(function(range) {
+      const start = ipToInt(range.start), end = ipToInt(range.end);
+      for (var i = start; i <= end; i++) freeSet[intToIp(i)] = true;
+    });
+    for (var i = 0; i < size; i++) {
+      const ip = intToIp(baseInt + i);
+      const used = usedMap[ip];
+      if (used) {
+        const status = used.status && used.status.value ? used.status.value : "active";
+        lines.push(ip + " | " + status + " | " + (used.dns_name||"") + " | " + (used.description||""));
+      } else if (freeSet[ip]) {
+        lines.push(ip + " | wolny | | ");
+      }
+    }
+    const ta = document.createElement("textarea"); ta.value = lines.join("\n"); document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+  };
+
+  window.exportCSV = function() {
+    const rows = [["Adres IP","Status","DNS","Opis"]];
+    const baseInt = ipToInt(PREFIX_BASE);
+    const size = Math.pow(2, 32 - parseInt(PREFIX_MASK));
+    const usedMap = {};
+    _usedData.forEach(function(item) { usedMap[item.address.split("/")[0]] = item; });
+    const freeSet = {};
+    _freeData.forEach(function(range) {
+      const start = ipToInt(range.start), end = ipToInt(range.end);
+      for (var i = start; i <= end; i++) freeSet[intToIp(i)] = true;
+    });
+    for (var i = 0; i < size; i++) {
+      const ip = intToIp(baseInt + i);
+      const used = usedMap[ip];
+      if (used) {
+        const status = used.status && used.status.value ? used.status.value : "active";
+        rows.push([ip, status, used.dns_name||"", used.description||""]);
+      } else if (freeSet[ip]) {
+        rows.push([ip, "wolny", "", ""]);
+      }
+    }
+    const csv = rows.map(function(r) { return r.join(";"); }).join("\n");
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="adresy_"+PREFIX.replace("/","_")+".csv"; a.click(); URL.revokeObjectURL(url);
+  };
+
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", loadFreeRanges); } else { loadFreeRanges(); }
+})();
+</script>
+{% endif %}
