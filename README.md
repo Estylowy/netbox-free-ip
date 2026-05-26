@@ -16,11 +16,28 @@ Works on: **IPAM → Prefixes → prefix detail**
 
 ## Installation
 
-### 1. Upload to your server and install
+### 1. Download and install
+
+Clone or download this repository. The folder structure must be preserved exactly as follows — pip requires it to install correctly:
+
+```
+netbox_free_ip/
+├── setup.py
+├── MANIFEST.in
+└── netbox_free_ip/
+    ├── __init__.py
+    ├── views.py
+    ├── urls.py
+    ├── utils.py
+    ├── tables.py
+    ├── template_content.py
+    ├── templates/
+    └── templatetags/
+```
+
+If you're uploading manually (e.g. via GitHub download), make sure to recreate this folder structure on your server before installing.
 
 ```bash
-cd /opt/plugins
-tar xzf netbox_free_ip.tar.gz
 sudo /opt/netbox/venv/bin/pip install /opt/plugins/netbox_free_ip/
 ```
 
