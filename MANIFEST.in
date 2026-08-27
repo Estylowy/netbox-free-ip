@@ -1,2 +1,1 @@
-recursive-include netbox_free_ip/templates *
-recursive-include netbox_free_ip/static *
+recursive-include netbox_ip_tools/templates *.html

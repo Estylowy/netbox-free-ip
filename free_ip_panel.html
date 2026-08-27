@@ -1,7 +1,7 @@
 {% load i18n %}
+{% include "netbox_ip_tools/_ip_tools_style.html" %}
 
 {% if prefix %}
-<!-- Modal usuwania -->
 <div id="free-ip-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
   <div class="card" style="min-width:360px;max-width:420px;margin:auto;margin-top:15vh;">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -20,7 +20,6 @@
   </div>
 </div>
 
-<!-- Modal dodawania -->
 <div id="free-ip-add-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
   <div class="card" style="min-width:360px;max-width:480px;margin:auto;margin-top:15vh;">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -44,7 +43,7 @@
 <div class="card" id="free-ip-panel">
   <div class="card-header d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
-      <i class="mdi mdi-ip-network-outline text-success"></i>
+      <i class="mdi mdi-ip-network-outline ipt-badge-ok"></i>
       <strong>Wolne zakresy IP — <code>{{ prefix.prefix }}</code></strong>
     </div>
     <div class="d-flex align-items-center gap-2">
@@ -74,6 +73,12 @@
           </button>
         </div>
       </div>
+      <div id="free-ip-truncated-note" class="px-3 pb-2" style="display:none;">
+        <span class="ipt-badge-outline ipt-badge-warn">
+          <i class="mdi mdi-alert-outline"></i>
+          Pokazano tylko część zakresów — patrz opis poniżej
+        </span>
+      </div>
 
       <div class="table-responsive">
         <table class="table table-hover table-headings mb-0">
@@ -82,6 +87,7 @@
               <th class="ps-3">Pierwszy wolny adres</th>
               <th>Ostatni wolny adres</th>
               <th>Liczba adresów</th>
+              <th>CIDR (jeśli wyrównany)</th>
               <th>Dodaj adres</th>
             </tr>
           </thead>
@@ -102,15 +108,15 @@
       </div>
       <div id="free-ip-grid" class="px-3 pb-3 pt-2 d-flex flex-wrap gap-1"></div>
       <div class="px-3 pb-3 d-flex gap-3 flex-wrap border-top pt-2">
-        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:#198754;border-radius:3px;vertical-align:middle;"></span> Wolny</small>
-        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:#dc3545;border-radius:3px;vertical-align:middle;"></span> Active</small>
-        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:#fd7e14;border-radius:3px;vertical-align:middle;"></span> Reserved</small>
+        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:rgba(95,181,130,.35);border:1px solid rgba(95,181,130,.7);border-radius:3px;vertical-align:middle;"></span> Wolny</small>
+        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:var(--ipt-red);border-radius:3px;vertical-align:middle;"></span> Active</small>
+        <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:var(--ipt-amber);border-radius:3px;vertical-align:middle;"></span> Reserved</small>
         <small class="text-secondary"><span style="display:inline-block;width:14px;height:14px;background:#6c757d;border-radius:3px;vertical-align:middle;"></span> Deprecated / Sieć</small>
       </div>
     </div>
 
     <div id="free-ip-empty" style="display:none;" class="text-center py-4 text-secondary">
-      <i class="mdi mdi-check-circle-outline fs-4 text-success"></i>
+      <i class="mdi mdi-check-circle-outline fs-4 ipt-badge-ok"></i>
       <div class="mt-1">Prefiks jest w pełni zajęty – brak wolnych adresów.</div>
     </div>
   </div>
@@ -122,7 +128,7 @@
   const PREFIX = "{{ prefix.prefix }}";
   const PREFIX_MASK = PREFIX.split("/")[1];
   const PREFIX_BASE = PREFIX.split("/")[0];
-  const API_URL = "/plugins/free-ip/prefix/" + PREFIX_ID + "/free-ranges/";
+  const API_URL = "/plugins/ip-tools/prefix/" + PREFIX_ID + "/free-ranges/";
   const IPAM_API = "/api/ipam/ip-addresses/?parent=" + encodeURIComponent(PREFIX) + "&limit=1000";
   let _freeData = [], _usedData = [], _panelVisible = true;
 
@@ -133,10 +139,10 @@
   function intToIp(n) { return [(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255].join("."); }
 
   function getStatusColor(status) {
-    if (status === "active") return "#dc3545";
-    if (status === "reserved") return "#fd7e14";
+    if (status === "active") return "var(--ipt-red)";
+    if (status === "reserved") return "var(--ipt-amber)";
     if (status === "deprecated") return "#6c757d";
-    return "#dc3545";
+    return "var(--ipt-red)";
   }
 
   function renderTable(results) {
@@ -145,57 +151,55 @@
     results.forEach(function(row) {
       const tr = document.createElement("tr");
       tr.innerHTML = "<td class='ps-3'>" + row.start + "</td><td>" + row.end + "</td>" +
-        "<td><span class='badge bg-success text-white'>" + row.count.toLocaleString() + "</span></td>" +
-        "<td><button class='btn btn-sm btn-outline-success' onclick='openAddModal(\"" + row.start + "\")' title='Dodaj adres IP'><i class='mdi mdi-plus-thick'></i></button></td>";
+        "<td><span class='ipt-badge-outline ipt-badge-ok'>" + row.count.toLocaleString() + "</span></td>" +
+        "<td class='text-secondary'>" + (row.cidr || "—") + "</td>" +
+        "<td><button class='btn btn-sm btn-outline-secondary' onclick=\"openAddModal('" + row.start + "')\">" +
+        "<i class='mdi mdi-plus'></i></button></td>";
       tbody.appendChild(tr);
     });
   }
 
-  window.toggleFilter = function(btn) {
-    const active = !btn.classList.contains("btn-outline-secondary");
-    if (active) {
-      btn.className = btn.className.replace(/btn-(danger|warning|secondary)/, "btn-outline-secondary");
-    } else {
-      if (btn.id === "filter-active") btn.className = btn.className.replace("btn-outline-secondary", "btn-danger");
-      if (btn.id === "filter-reserved") btn.className = btn.className.replace("btn-outline-secondary", "btn-warning");
-      if (btn.id === "filter-deprecated") btn.className = btn.className.replace("btn-outline-secondary", "btn-secondary");
-    }
+  function toggleFilter(btn) {
+    btn.classList.toggle("ipt-filter-off");
+    btn.style.opacity = btn.classList.contains("ipt-filter-off") ? "0.35" : "1";
     renderGrid(_freeData, _usedData);
-  };
+  }
+  window.toggleFilter = toggleFilter;
 
-  function isFilterOn(id) { return !el(id).classList.contains("btn-outline-secondary"); }
-
-  function renderGrid(freeRanges, usedIps) {
-    const showActive = isFilterOn("filter-active");
-    const showReserved = isFilterOn("filter-reserved");
-    const showDeprecated = isFilterOn("filter-deprecated");
+  function renderGrid(freeRanges, usedData) {
     const grid = el("free-ip-grid");
     grid.innerHTML = "";
+    const showActive = !el("filter-active").classList.contains("ipt-filter-off");
+    const showReserved = !el("filter-reserved").classList.contains("ipt-filter-off");
+    const showDeprecated = !el("filter-deprecated").classList.contains("ipt-filter-off");
+
+    const baseInt = ipToInt(PREFIX_BASE);
+    const size = Math.pow(2, 32 - parseInt(PREFIX_MASK));
     const usedMap = {};
-    usedIps.forEach(function(item) { usedMap[item.address.split("/")[0]] = item; });
+    usedData.forEach(function(item) { usedMap[item.address.split("/")[0]] = item; });
     const freeSet = {};
     freeRanges.forEach(function(range) {
       const start = ipToInt(range.start), end = ipToInt(range.end);
       for (var i = start; i <= end; i++) freeSet[intToIp(i)] = true;
     });
-    const baseInt = ipToInt(PREFIX_BASE);
-    const size = Math.pow(2, 32 - parseInt(PREFIX_MASK));
+
     const limit = Math.min(size, 512);
     for (var i = 0; i < limit; i++) {
       const ip = intToIp(baseInt + i);
-      const cell = document.createElement("a");
-      cell.textContent = ip.split(".")[3];
       const usedItem = usedMap[ip];
+      const cell = document.createElement("a");
+      cell.href = "#";
       if (i === 0 || i === size - 1) {
-        cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:#495057;color:#adb5bd;text-decoration:none;cursor:default;";
+        cell.className = "ipt-grid-cell ipt-cell-net";
         cell.title = ip + " (sieć/broadcast)";
       } else if (usedItem) {
         const status = usedItem.status && usedItem.status.value ? usedItem.status.value : "active";
         const visible = (status==="active"&&showActive)||(status==="reserved"&&showReserved)||(status==="deprecated"&&showDeprecated);
         if (!visible) {
-          cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:#2d3748;color:#4a5568;text-decoration:none;cursor:default;";
+          cell.className = "ipt-grid-cell ipt-cell-hidden";
         } else {
-          cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:" + getStatusColor(status) + ";color:#fff;text-decoration:none;cursor:pointer;";
+          cell.className = "ipt-grid-cell ipt-cell-used";
+          cell.style.background = getStatusColor(status);
           const desc = usedItem.description ? " — " + usedItem.description : "";
           const dns = usedItem.dns_name ? " (" + usedItem.dns_name + ")" : "";
           cell.title = ip + " [" + status + "]" + dns + desc + "\nKliknij aby usunąć";
@@ -204,12 +208,13 @@
           })(ip, usedItem.id, usedItem.description||"", usedItem.dns_name||"");
         }
       } else if (freeSet[ip]) {
-        cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:#198754;color:#fff;text-decoration:none;cursor:pointer;";
+        cell.className = "ipt-grid-cell ipt-cell-free";
         cell.title = ip + " (wolny) — kliknij aby dodać";
         (function(itemIp) { cell.addEventListener("click", function(e) { e.preventDefault(); openAddModal(itemIp); }); })(ip);
       } else {
-        cell.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:42px;height:24px;border-radius:3px;font-size:0.7rem;background:#495057;color:#adb5bd;text-decoration:none;cursor:default;";
+        cell.className = "ipt-grid-cell ipt-cell-net";
       }
+      cell.textContent = ip.split(".")[3];
       grid.appendChild(cell);
     }
     if (size > 512) {
@@ -263,10 +268,19 @@
       hide("free-ip-loading");
       _freeData = res[0].results || [];
       _usedData = res[1].results || [];
-      if (_freeData.length === 0) { show("free-ip-empty"); el("free-ip-summary").textContent = "Brak wolnych adresów"; return; }
-      const totalFree = _freeData.reduce(function(s, r) { return s + r.count; }, 0);
-      el("free-ip-summary").textContent = _freeData.length + " wolnych zakresów · " + totalFree.toLocaleString() + " adresów";
-      el("free-ip-count-label").textContent = _freeData.length + " wolnych zakresów (" + totalFree.toLocaleString() + " adresów)";
+      const totalRanges = (res[0].total_free_ranges != null) ? res[0].total_free_ranges : _freeData.length;
+      const totalFree = (res[0].total_free_addresses != null)
+        ? res[0].total_free_addresses
+        : _freeData.reduce(function(s, r) { return s + r.count; }, 0);
+      if (totalRanges === 0) { show("free-ip-empty"); el("free-ip-summary").textContent = "Brak wolnych adresów"; return; }
+      el("free-ip-summary").textContent = totalRanges + " wolnych zakresów · " + totalFree.toLocaleString() + " adresów";
+      el("free-ip-count-label").textContent = totalRanges + " wolnych zakresów (" + totalFree.toLocaleString() + " adresów)";
+      if (res[0].truncated) {
+        show("free-ip-truncated-note");
+        el("free-ip-truncated-note").querySelector("span").innerHTML =
+          '<i class="mdi mdi-alert-outline"></i> Pokazano ' + res[0].returned_ranges + ' z ' + totalRanges +
+          ' zakresów (limit w ustawieniach pluginu: max_free_ranges).';
+      }
       renderTable(_freeData);
       renderGrid(_freeData, _usedData);
       show("free-ip-table-wrapper");

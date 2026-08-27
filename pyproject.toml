@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netbox-ip-tools"
+version = "1.1.0"
+authors = [
+    {name = "NetBox Admin"},
+]
+description = "Wolne zakresy IP w prefiksie (poprawnie liczone) oraz nawigacja z adresu IP do prefiksów nadrzędnych"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["netbox_ip_tools*"]
+
+[tool.setuptools.package-data]
+netbox_ip_tools = [
+    "templates/**/*.html",
+    "templates/**/**/*.html",
+]

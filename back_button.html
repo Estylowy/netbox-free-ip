@@ -1,0 +1,51 @@
+{% include "netbox_ip_tools/_ip_tools_style.html" %}
+{% if ip %}
+<div class="card mb-3" id="ip-back-panel">
+  <div class="card-header">
+    <strong><i class="mdi mdi-arrow-left-circle me-1 ipt-badge-info"></i>Nawigacja — prefiksy nadrzędne</strong>
+  </div>
+  <div class="card-body p-2">
+    <div id="ip-back-loading" class="text-secondary small py-1 ps-2">
+      <div class="spinner-border spinner-border-sm me-1" role="status"></div>
+      Wczytywanie…
+    </div>
+    <div id="ip-back-links" class="d-flex flex-column gap-1"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const IP_ADDRESS = "{{ ip.address }}";
+  const IP_ONLY = IP_ADDRESS.split("/")[0];
+
+  fetch("/api/ipam/prefixes/?contains=" + encodeURIComponent(IP_ONLY) + "&limit=10")
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      document.getElementById("ip-back-loading").style.display = "none";
+      const container = document.getElementById("ip-back-links");
+      const results = data.results || [];
+      if (results.length === 0) {
+        container.innerHTML = "<a href='/ipam/prefixes/' class='btn btn-outline-secondary btn-sm'><i class='mdi mdi-arrow-left me-1'></i>Lista prefiksów</a>";
+        return;
+      }
+      results.sort(function(a, b) {
+        return parseInt(b.prefix.split("/")[1]) - parseInt(a.prefix.split("/")[1]);
+      });
+      results.forEach(function(prefix) {
+        const a = document.createElement("a");
+        a.href = "/ipam/prefixes/" + prefix.id + "/";
+        a.className = "btn btn-outline-primary btn-sm text-start";
+        a.innerHTML = "<i class='mdi mdi-arrow-left me-1'></i><strong>" + prefix.prefix + "</strong>";
+        if (prefix.description) {
+          a.innerHTML += "<span class='text-secondary ms-2' style='font-size:.8rem;font-weight:400;'>— " + prefix.description + "</span>";
+        }
+        container.appendChild(a);
+      });
+    })
+    .catch(function() {
+      document.getElementById("ip-back-loading").style.display = "none";
+      document.getElementById("ip-back-links").innerHTML = "<a href='/ipam/prefixes/' class='btn btn-outline-secondary btn-sm'><i class='mdi mdi-arrow-left me-1'></i>Lista prefiksów</a>";
+    });
+})();
+</script>
+{% endif %}

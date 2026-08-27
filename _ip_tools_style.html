@@ -1,0 +1,58 @@
+{% if not ip_tools_style_rendered %}
+{% with ip_tools_style_rendered=True %}
+<style>
+    :root {
+        --ipt-red:    #e5657a;
+        --ipt-green:  #5fb582;
+        --ipt-amber:  #d6a648;
+        --ipt-blue:   #5b9bd5;
+    }
+    .ipt-badge-outline {
+        display: inline-block;
+        background: transparent;
+        border: 1px solid currentColor;
+        border-radius: .375rem;
+        padding: .1rem .5rem;
+        font-size: .75rem;
+        font-weight: 500;
+    }
+    .ipt-badge-ok { color: var(--ipt-green); }
+    .ipt-badge-warn { color: var(--ipt-amber); }
+    .ipt-badge-error { color: var(--ipt-red); }
+    .ipt-badge-neutral { color: #9aa5b1; }
+    .ipt-badge-info { color: var(--ipt-blue); }
+
+    .ipt-grid-cell {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 24px;
+        border-radius: 3px;
+        font-size: .7rem;
+        text-decoration: none;
+    }
+    .ipt-cell-free {
+        background: rgba(95, 181, 130, .18);
+        border: 1px solid rgba(95, 181, 130, .55);
+        color: #cdeedb;
+        cursor: pointer;
+    }
+    .ipt-cell-used {
+        border: 1px solid transparent;
+        color: #fff;
+        cursor: pointer;
+    }
+    .ipt-cell-hidden {
+        background: rgba(255, 255, 255, .03);
+        color: #4a5568;
+        cursor: default;
+    }
+    .ipt-cell-net {
+        background: rgba(255, 255, 255, .06);
+        color: #8a94a3;
+        cursor: default;
+    }
+</style>
+{% endwith %}
+{% endif %}

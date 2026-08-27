@@ -1,64 +1,49 @@
-# netbox_free_ip
+# netbox-ip-tools
 
-NetBox 4.x plugin that brings PHP IPAM-inspired free IP range visualization to prefix detail pages.
+Wersja: **1.1.0**
 
-Works on: **IPAM → Prefixes → prefix detail**
+Plugin NetBoksa łączący dwie funkcje (dawniej dwa osobne pluginy:
+`netbox_free_ip` i `netbox_ip_back`):
 
-## Features
+1. **Wolne zakresy IP** — panel na stronie prefiksu pokazujący faktyczne,
+   fragmentaryczne wolne zakresy adresów (tabela + wizualna siatka + eksport
+   CSV + szybkie dodawanie/usuwanie adresów).
+2. **Nawigacja wstecz** — panel na stronie adresu IP z linkami do wszystkich
+   prefiksów nadrzędnych zawierających ten adres.
 
-- Free IP ranges table: first address, last address, count
-- Visual prefix grid — green = free, red = used
-- Click a free address → modal to add a new IP
-- Click a used address → modal to remove it
-- Filter by status: Active, Reserved, Deprecated
-- CSV export and clipboard copy
-- Collapsible panel
+## Naprawiony błąd (względem oryginalnego `netbox_free_ip`)
 
-## Installation
+Poprzednia wersja liczenia wolnych zakresów (`get_free_ranges`) zwracała
+zawsze **jeden** zakres — od pierwszego do ostatniego wolnego adresu w całym
+prefiksie, **licząc też adresy zajęte leżące pomiędzy nimi**. Dla prefiksu
+z adresami zajętymi gdziekolwiek poza samym początkiem/końcem dawało to
+całkowicie błędny wynik (np. `/24` z zajętymi `.10`–`.240` pokazywał jeden
+"wolny zakres" `.1`–`.254` z licznikiem 254, zamiast dwóch prawdziwych
+fragmentów: `.1`–`.9` i `.241`–`.254`, razem 23 adresy).
 
-### 1. Download and install
+Nowa wersja poprawnie identyfikuje **wszystkie** ciągłe wolne fragmenty
+i dodatkowo liczy realny zapis CIDR tam, gdzie fragment jest wyrównany do
+granicy bloku (np. dokładnie `/26`).
 
-Clone or download this repository. The folder structure must be preserved exactly as follows — pip requires it to install correctly:
+## Wymagania
 
-```
-netbox_free_ip/
-├── setup.py
-├── MANIFEST.in
-└── netbox_free_ip/
-    ├── __init__.py
-    ├── views.py
-    ├── urls.py
-    ├── utils.py
-    ├── tables.py
-    ├── template_content.py
-    ├── templates/
-    └── templatetags/
-```
+- NetBox 4.3.1+
+- Python 3.9+
 
-If you're uploading manually (e.g. via GitHub download), make sure to recreate this folder structure on your server before installing.
+## Instalacja
 
-```bash
-sudo /opt/netbox/venv/bin/pip install /opt/plugins/netbox_free_ip/
-```
+Patrz `INSTALL.md`.
 
-### 2. Add to configuration.py
+## Konfiguracja (`configuration.py`)
 
 ```python
 PLUGINS = [
-    "netbox_free_ip",
+    "netbox_ip_tools",
 ]
 
 PLUGINS_CONFIG = {
-    "netbox_free_ip": {
-        "max_free_ranges": 50,
+    "netbox_ip_tools": {
+        "max_free_ranges": 50,  # ile zakresów pokazać w tabeli na raz
     }
 }
-```
-
-### 3. Migrate and restart
-
-```bash
-sudo /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate
-sudo /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input
-sudo systemctl restart netbox netbox-rq
 ```
